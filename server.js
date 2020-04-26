@@ -46,14 +46,14 @@ app.get("/bookmark", (req, res) => {
     return res.status(406).end();
   }
 
-  let bookmark = bookmarks.filter((bookmark) => bookmark.title == title);
+  let filteredBookmarks = bookmarks.filter((bookmark) => bookmark.title == title);
 
-  if (!bookmark) {
+  if (filteredBookmarks.length === 0) {
     res.statusMessage = `The title ${title} was not found.`;
     return res.status(404).end();
   }
 
-  return res.status(200).json(bookmark);
+  return res.status(200).json(filteredBookmarks);
 });
 
 app.post("/bookmarks", jsonParser, (req, res) => {
@@ -106,7 +106,7 @@ app.patch("/bookmark/:id", jsonParser, (req, res) => {
   let paramFlag = true;
 
   if (!bodyId) {
-    res.statusMessage = "Please send the id in the body or the request.";
+    res.statusMessage = "Please send the 'id' in the body or the request.";
     return res.status(406).end();
   }
 
@@ -140,7 +140,7 @@ app.patch("/bookmark/:id", jsonParser, (req, res) => {
     return res.status(202).json(bookmark);
   } else {
     res.statusMessage =
-      "One or more params in the Body of the request don't match with the properties of the bookmark";
+      "One or more fields in the Body don't match with the properties of the bookmark";
     return res.status(409).end();
   }
 });
