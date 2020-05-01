@@ -1,8 +1,10 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const morgan = require("morgan");
+const mongoose = require("mongoose");
 const uuid = require("uuid");
 const validateToken = require("./middleware/validateToken");
+const { Bookmarks } = require("./models/bookmarksModel");
 
 const app = express();
 const jsonParser = bodyParser.json();
@@ -10,32 +12,15 @@ const jsonParser = bodyParser.json();
 app.use(morgan("dev"));
 app.use(validateToken);
 
-let bookmarks = [
-  {
-    id: uuid.v4(),
-    title: "Bookmark 1",
-    description: "First Bookmark",
-    url: "www",
-    rating: 10,
-  },
-  {
-    id: uuid.v4(),
-    title: "Bookmark 2",
-    description: "Second Bookmark",
-    url: "www",
-    rating: 8,
-  },
-  {
-    id: uuid.v4(),
-    title: "Bookmark 3",
-    description: "Third Bookmark",
-    url: "www",
-    rating: 9,
-  },
-];
-
 app.get("/bookmarks", (_, res) => {
-  return res.status(200).json(bookmarks);
+  Bookmarks.getAllBookmarks()
+    .then((result) => {
+      return res.status(200).json(result);
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      return res.status(500).end();
+    });
 });
 
 app.get("/bookmark", (req, res) => {
@@ -46,14 +31,18 @@ app.get("/bookmark", (req, res) => {
     return res.status(406).end();
   }
 
-  let filteredBookmarks = bookmarks.filter((bookmark) => bookmark.title == title);
-
-  if (filteredBookmarks.length === 0) {
-    res.statusMessage = `The title ${title} was not found.`;
-    return res.status(404).end();
-  }
-
-  return res.status(200).json(filteredBookmarks);
+  Bookmarks.getBookmarkByTitle(title)
+    .then((result) => {
+      if (result.length === 0) {
+        res.statusMessage = `The title ${title} was not found.`;
+        return res.status(404).end();
+      }
+      return res.status(200).json(result);
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      return res.status(500).end();
+    });
 });
 
 app.post("/bookmarks", jsonParser, (req, res) => {
@@ -75,35 +64,38 @@ app.post("/bookmarks", jsonParser, (req, res) => {
     rating,
   };
 
-  bookmarks.push(newBookmark);
-
-  return res.status(201).json(newBookmark);
+  Bookmarks.createBookmark(newBookmark)
+    .then((result) => {
+      return res.status(201).json(result);
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      return res.status(500).end();
+    });
 });
 
 app.delete("/bookmark/:id", (req, res) => {
   let id = req.params.id;
 
-  let bookmark = bookmarks.findIndex((bookmark) => {
-    if (bookmark.id === id) {
-      return true;
-    }
-  });
-
-  if (bookmark < 0) {
-    res.statusMessage = "The 'id' was not found.";
-    return res.status(404).end();
-  }
-
-  bookmarks.splice(bookmark, 1);
-
-  return res.status(200).end();
+  Bookmarks.deleteBookmark(id)
+    .then((result) => {
+      if (result.n === 0) {
+        res.statusMessage = "The 'id' was not found.";
+        return res.status(404).end();
+      }
+      return res.status(200).end();
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      return res.status(500).end();
+    });
 });
 
 app.patch("/bookmark/:id", jsonParser, (req, res) => {
   let paramsId = req.params.id;
   let bodyId = req.body.id;
   let bookmarkParams = req.body;
-  let paramFlag = true;
+  let paramFlag = false;
 
   if (!bodyId) {
     res.statusMessage = "Please send the 'id' in the body or the request.";
@@ -123,28 +115,49 @@ app.patch("/bookmark/:id", jsonParser, (req, res) => {
       key !== "url" &&
       key !== "rating"
     ) {
-      paramFlag = false;
+      paramFlag = true;
     }
   });
 
-  let bookmark = bookmarks.find((bookmark) => bookmark.id === paramsId);
-
-  if (!bookmark) {
-    res.statusMessage = "The 'id' was not found.";
-    return res.status(404).end();
-  }
-
   if (paramFlag) {
-    Object.assign(bookmark, bookmarkParams);
-
-    return res.status(202).json(bookmark);
-  } else {
     res.statusMessage =
       "One or more fields in the Body don't match with the properties of the bookmark";
     return res.status(409).end();
   }
+
+  Bookmarks.updateBookmark(paramsId, bookmarkParams)
+    .then((result) => {
+      if (!result) {
+        res.statusMessage = "The 'id' was not found.";
+        return res.status(404).end();
+      }
+      return res.status(202).json(result);
+    })
+    .catch((err) => {
+      res.statusMessage = err;
+      return res.status(500).end();
+    });
 });
 
 app.listen(8080, () => {
   console.log("This server is running in port 8080.");
+
+  new Promise((resolve, reject) => {
+    const settings = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      useCreateIndex: true,
+    };
+
+    mongoose.connect("mongodb://localhost/bookmarksdb", settings, (err) => {
+      if (err) {
+        return reject(err);
+      } else {
+        console.log("Database connected successfully");
+        return resolve();
+      }
+    });
+  }).catch((err) => {
+    console.log(err);
+  });
 });
