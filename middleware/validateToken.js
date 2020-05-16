@@ -1,5 +1,6 @@
+const { API_TOKEN } = require("./../config");
+
 function validateToken(req, res, next) {
-  const API_TOKEN = "2abbf7c3-245b-404f-9473-ade729ed4653";
   let headerToken = req.headers.authorization;
   let bookApiKeyToken = req.headers["book-api-key"];
   let queryToken = req.query.apiKey;

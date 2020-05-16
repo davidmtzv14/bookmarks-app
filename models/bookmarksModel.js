@@ -47,7 +47,7 @@ const Bookmarks = {
         return err;
       });
   },
-  getBookmarkByTitle: function (title) {
+  getBookmarksByTitle: function (title) {
     return bookmarksCollection
       .find({ title })
       .then((filteredBookmarks) => {

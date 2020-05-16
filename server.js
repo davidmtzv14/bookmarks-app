@@ -4,11 +4,15 @@ const morgan = require("morgan");
 const mongoose = require("mongoose");
 const uuid = require("uuid");
 const validateToken = require("./middleware/validateToken");
+const cors = require( './middleware/cors' );
 const { Bookmarks } = require("./models/bookmarksModel");
+const { DATABASE_URL, PORT } = require("./config");
 
 const app = express();
 const jsonParser = bodyParser.json();
 
+app.use( cors );
+app.use(express.static("public"));
 app.use(morgan("dev"));
 app.use(validateToken);
 
@@ -23,7 +27,7 @@ app.get("/bookmarks", (_, res) => {
     });
 });
 
-app.get("/bookmark", (req, res) => {
+app.get("/bookmarksByTitle", (req, res) => {
   let title = req.query.title;
 
   if (!title) {
@@ -31,7 +35,7 @@ app.get("/bookmark", (req, res) => {
     return res.status(406).end();
   }
 
-  Bookmarks.getBookmarkByTitle(title)
+  Bookmarks.getBookmarksByTitle(title)
     .then((result) => {
       if (result.length === 0) {
         res.statusMessage = `The title ${title} was not found.`;
@@ -98,7 +102,7 @@ app.patch("/bookmark/:id", jsonParser, (req, res) => {
   let paramFlag = false;
 
   if (!bodyId) {
-    res.statusMessage = "Please send the 'id' in the body or the request.";
+    res.statusMessage = "Please send the 'id' in the body of the request.";
     return res.status(406).end();
   }
 
@@ -139,7 +143,7 @@ app.patch("/bookmark/:id", jsonParser, (req, res) => {
     });
 });
 
-app.listen(8080, () => {
+app.listen(PORT, () => {
   console.log("This server is running in port 8080.");
 
   new Promise((resolve, reject) => {
@@ -149,7 +153,7 @@ app.listen(8080, () => {
       useCreateIndex: true,
     };
 
-    mongoose.connect("mongodb://localhost/bookmarksdb", settings, (err) => {
+    mongoose.connect(DATABASE_URL, settings, (err) => {
       if (err) {
         return reject(err);
       } else {
